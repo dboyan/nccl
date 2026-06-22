@@ -73,6 +73,8 @@ def test_nccl_put_kernel(dev_comm, send_win, recv_win):
     team = dev_comm.team_world
     gin = dev_comm.gin(nccl_cute.GinBackendMask.ALL, 0)
     coop = nccl_cute.cta()
+    bar = nccl_cute.barrier.world_hybrid(coop, gin, dev_comm, cute.arch.block_idx()[0])
+    bar.sync(coop, nccl_cute.types.MemoryOrder.RELAXED, nccl_cute.types.GinFenceLevel.NONE)
 
     # cute.Tensor views spanning the full 1 MiB of each window.
     send = send_win.tensor(cutlass.Int64, cute.make_layout(NUM_ELEMS))
@@ -189,6 +191,7 @@ def main():
     reqs = nccl.NCCLDevCommRequirements(
         gin_connection_type=nccl.NcclGinConnectionType.FULL,
         gin_signal_count=SIGNAL_ID + 1,
+        barrier_count=1,
     )
     dev_comm = nccl_comm.create_dev_comm(requirements=reqs)
     assert dev_comm.is_valid
